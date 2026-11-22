@@ -1,0 +1,1802 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>歩行アシスト（試作）</title>
+    <style>
+      button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]) { min-height: 2rem; }
+
+      :root {
+        --bg: #101418;
+        --panel: #1b2129;
+        --panel-2: #242d38;
+        --ink: #f2f5f8;
+        --ink-dim: #aeb9c4;
+        --line: #39434f;
+        --accent: #ffb340;
+        --safe: #35c163;
+        --warn: #f5c518;
+        --near: #ff8c1a;
+        --danger: #ff3b30;
+        --btn: #2b3542;
+        --btn-ink: #f2f5f8;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #eef1f4;
+          --panel: #ffffff;
+          --panel-2: #e4e9ee;
+          --ink: #141a20;
+          --ink-dim: #4c5866;
+          --line: #c3ccd4;
+          --btn: #dde4ea;
+          --btn-ink: #141a20;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN",
+          "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      /* ---------- start screen ---------- */
+      #startScreen {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 20px 18px calc(28px + env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      #startScreen h1 {
+        font-size: 1.55rem;
+        line-height: 1.35;
+        margin: 6px 0 0;
+        font-weight: 800;
+        letter-spacing: .01em;
+      }
+      #startScreen .lead {
+        margin: 0;
+        font-size: 1.02rem;
+        line-height: 1.75;
+        color: var(--ink-dim);
+      }
+      /* ---------- 許可の注意書き（最上部・常時表示） ---------- */
+      .permNotice {
+        border: 2px solid var(--accent);
+        border-radius: 14px;
+        padding: 14px 18px;
+        background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+      }
+      .permNotice .permTitle {
+        margin: 0 0 6px;
+        font-size: 1.18rem;
+        font-weight: 800;
+        line-height: 1.5;
+      }
+      .permNotice p {
+        margin: 0;
+        font-size: .98rem;
+        line-height: 1.75;
+      }
+      /* ---------- テスト版の注釈（開始ボタンの直前・常時表示） ---------- */
+      .testNotice {
+        border: 3px solid var(--warn);
+        border-radius: 14px;
+        padding: 14px 18px;
+        background: color-mix(in srgb, var(--warn) 14%, var(--panel));
+      }
+      .testNotice .testTitle {
+        margin: 0 0 6px;
+        font-size: 1.18rem;
+        font-weight: 800;
+        line-height: 1.5;
+      }
+      .testNotice p {
+        margin: 0;
+        font-size: .98rem;
+        line-height: 1.75;
+      }
+      .testNotice p + p { margin-top: 6px; }
+      /* ---------- 長文の折りたたみ ---------- */
+      details.fold {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 4px 18px;
+      }
+      details.fold > summary {
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.5;
+        padding: 14px 0;
+        cursor: pointer;
+        min-height: 44px;
+      }
+      details.fold .foldBody { padding: 0 0 16px; }
+      details.fold .foldBody p {
+        margin: 0 0 12px;
+        font-size: 1rem;
+        line-height: 1.8;
+        color: var(--ink-dim);
+      }
+      details.fold .foldBody p:last-child { margin-bottom: 0; }
+      details.fold .foldBody ul {
+        margin: 0;
+        padding-left: 1.25em;
+        line-height: 1.85;
+        font-size: .98rem;
+      }
+      .howto {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px 18px;
+      }
+      .howto h2 {
+        font-size: 1rem;
+        margin: 0 0 10px;
+        font-weight: 700;
+      }
+      .howto ul {
+        margin: 0;
+        padding-left: 1.25em;
+        line-height: 1.85;
+        font-size: .98rem;
+      }
+      .caution {
+        border: 2px solid var(--danger);
+        border-radius: 14px;
+        padding: 14px 18px;
+        font-size: .98rem;
+        line-height: 1.8;
+        background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+      }
+      .caution strong { color: var(--danger); }
+      .startBtns { display: flex; flex-direction: column; gap: 12px; }
+      .bigBtn {
+        appearance: none;
+        border: 0;
+        border-radius: 16px;
+        padding: 20px 16px;
+        font-size: 1.3rem;
+        font-weight: 800;
+        cursor: pointer;
+        min-height: 68px;
+        width: 100%;
+      }
+      .bigBtn.primary { background: var(--accent); color: #1a1206; }
+      .bigBtn.secondary { background: var(--btn); color: var(--btn-ink); border: 1px solid var(--line); }
+      .bigBtn:disabled { opacity: .55; }
+      #startStatus {
+        min-height: 1.6em;
+        font-size: .98rem;
+        color: var(--ink-dim);
+        text-align: center;
+        line-height: 1.6;
+      }
+
+      /* ---------- running view ---------- */
+      #runView {
+        position: fixed;
+        inset: 0;
+        display: none;
+        background: #000;
+        flex-direction: column;
+      }
+      #runView.on { display: flex; }
+      #stage {
+        position: relative;
+        flex: 1;
+        overflow: hidden;
+        background: #000;
+      }
+      #cam, #demoCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+      }
+      #overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      #dangerFrame {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border: 0 solid var(--danger);
+        opacity: 0;
+      }
+      #dangerFrame.on { opacity: 1; border-width: 10px; animation: framePulse .52s steps(2, end) infinite; }
+      @keyframes framePulse {
+        0% { border-color: var(--danger); }
+        50% { border-color: transparent; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #dangerFrame.on { animation: none; border-color: var(--danger); }
+        #statusBanner.pulse { animation: none !important; }
+      }
+
+      #statusBanner {
+        padding: calc(10px + env(safe-area-inset-top)) 16px 12px;
+        text-align: center;
+        color: #10130c;
+        transition: background-color .15s linear;
+      }
+      #statusBanner.lv0 { background: var(--safe); }
+      #statusBanner.lv1 { background: var(--warn); }
+      #statusBanner.lv2 { background: var(--near); }
+      #statusBanner.lv3 { background: var(--danger); color: #fff; }
+      #statusBanner.pulse { animation: bannerPulse .52s steps(2, end) infinite; }
+      @keyframes bannerPulse {
+        0% { filter: brightness(1); }
+        50% { filter: brightness(1.35); }
+      }
+      #statusWord {
+        font-size: clamp(3rem, 15vw, 5.2rem);
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: .04em;
+      }
+      #statusDetail {
+        font-size: clamp(1.15rem, 5.4vw, 1.7rem);
+        font-weight: 700;
+        line-height: 1.4;
+        min-height: 1.4em;
+      }
+      #readout, #readout2, #readout3 {
+        display: flex;
+        gap: 8px;
+        padding: 10px 12px;
+        background: rgba(8, 10, 12, .88);
+        color: #e8edf1;
+        font-size: .95rem;
+        line-height: 1.5;
+      }
+      #readout2, #readout3 {
+        padding-top: 2px;
+        border-top: 1px solid rgba(255, 255, 255, .14);
+        font-size: .9rem;
+      }
+      #readout div, #readout2 div, #readout3 div { flex: 1; min-width: 0; }
+      #readout .k, #readout2 .k, #readout3 .k { display: block; font-size: .78rem; color: #9fb0bf; letter-spacing: .06em; }
+      #readout .v, #readout2 .v, #readout3 .v { font-weight: 700; font-size: 1.02rem; }
+      #readout2 .v, #readout3 .v { font-size: .98rem; }
+      #controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+        background: #0b0e11;
+      }
+      .ctlBtn {
+        appearance: none;
+        border: 1px solid #39434f;
+        background: #232b35;
+        color: #f2f5f8;
+        border-radius: 14px;
+        font-size: 1.08rem;
+        font-weight: 700;
+        padding: 14px 8px;
+        min-height: 58px;
+        cursor: pointer;
+      }
+      .ctlBtn.stop { background: #5a1712; border-color: #8a2a20; }
+      .ctlBtn .state { color: var(--accent); }
+      .ctlBtn.off .state { color: #8b98a5; }
+
+      /* ---------- 判定パネルの表示／非表示 ---------- */
+      /* カメラ映像をタップすると、映像より下の判定文字とボタン類を
+         まとめて隠し、映像エリア（#stage は flex:1）を画面いっぱいに広げる。
+         上の安全／危険バナーは安全表示なので常に残す */
+      #runView.panelsHidden #readout,
+      #runView.panelsHidden #readout2,
+      #runView.panelsHidden #readout3,
+      #runView.panelsHidden #controls { display: none; }
+      #stage { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+      #panelToggle {
+        position: absolute;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        z-index: 6;
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, .45);
+        background: rgba(8, 10, 12, .72);
+        color: #fff;
+        border-radius: 999px;
+        padding: 10px 16px;
+        min-height: 44px;
+        font-size: .95rem;
+        font-weight: 700;
+        line-height: 1.2;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      #panelToggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+      #runView.panelsHidden #panelToggle {
+        background: rgba(8, 10, 12, .82);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      #stageHint {
+        position: absolute;
+        left: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        z-index: 5;
+        pointer-events: none;
+        background: rgba(8, 10, 12, .55);
+        color: rgba(255, 255, 255, .92);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: .82rem;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+      #runView.panelsHidden #stageHint { display: none; }
+    </style>
+  </head>
+  <body>
+
+    <!-- ================= start screen ================= -->
+    <main id="startScreen">
+      <h1>歩行アシスト（試作）</h1>
+
+      <p>
+        このページは、歩行アシストの試作（ブラウザ版）です。カメラの映像から「止まっている・歩いている・回転している」といったカメラ自体の動きを判定する仕組み（段階1）のテストページです。カメラを使わなくても、デモモードで判定の切り替わりを見られます。映像はあなたの端末の中だけで処理され、外部に送信されることはありません。
+      </p>
+
+      <div class="permNotice" role="note">
+        <p class="permTitle">カメラとセンサーを許可してください</p>
+        <p>
+          このテストは<strong>スマホで実行してください</strong>。
+          下の「カメラを開始」を押すと、カメラとモーションセンサーの許可ダイアログが出ますので、許可してください。
+          センサーを許可しなくても、カメラだけの判定で使えます。
+        </p>
+      </div>
+
+      <div class="testNotice" role="note">
+        <p class="testTitle">ブラウザ版はテスト専用です</p>
+        <p>
+          このページはブラウザで動作するテスト版です。実際に動作しますが、テスト中のため、ボタンの機能や動作は保証しません。
+        </p>
+        <p>
+          音声が出ない、振動が動作しないなど、ブラウザの環境では使えない機能があります。
+          本番は実機アプリとして開発する予定で、ブラウザ版はテストのみの位置づけです。
+        </p>
+        <p>
+          iPhoneの消音スイッチで音を消していると、音も振動も出ません。
+        </p>
+      </div>
+
+      <div class="startBtns">
+        <button class="bigBtn primary" id="btnStartCam" type="button">カメラを開始</button>
+        <button class="bigBtn secondary" id="btnStartDemo" type="button">デモで試す（カメラなし）</button>
+      </div>
+      <p id="startStatus" role="status"></p>
+
+      <p class="lead">
+        カメラ映像を端末の中だけで解析し、前方の障害物や足元の段差・側溝の疑いを、
+        音・振動・音声で知らせます。映像がサーバーに送られることはありません。
+        詳しい説明と使い方は、下の折りたたみを開いて読めます。
+      </p>
+
+      <details class="fold">
+        <summary>詳しい説明（判定の仕組み）</summary>
+        <div class="foldBody">
+          <p>
+            カメラ映像をこの端末の中だけで解析します。まずカメラ自体の動きを、画面全体の流れのパターンと、
+            端末のモーションセンサー（ジャイロ）から
+            「静止／前後／回転／上下／横移動」に切り分けて判定し、本当に位置が移動しているときだけ
+            前方の人・車やポール・木の幹などへの接近と、足元の縁石・側溝・段差の疑いを見ます。
+            止まっている間や振り向いただけの間は、近づいてくる人・自転車・車だけを知らせます。
+            危険度に応じてアラームのテンポと音程で知らせます。映像がサーバーに送られることはありません。
+          </p>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>使い方と注意（詳しく）</summary>
+        <div class="foldBody">
+        <ul>
+          <li>スマホを胸の高さで持ち、背面カメラを進行方向へ向けます</li>
+          <li>画面下の「動き」に現在の判定（静止／前進／後退／回転／上下／横移動）が出て、その下に前後・回転・上下・横移動の内訳も出ます。流れが弱いときは内訳に「（弱）」と出ます</li>
+          <li>座っている・立っているだけでは「静止」になります。手ぶれのような小さな往復の揺れや、画面の明るさの変化だけでは「移動」になりません</li>
+          <li>前進・横移動のときだけ、前方の障害物と足元の確認をします。回転（振り向き）や上下の動きだけでは歩行とみなさず、止まっている間と同じく、近づいてくる人・車・自転車だけを知らせます</li>
+          <li>「カメラを開始」を押すと、iPhoneではモーションセンサーの許可ダイアログが出ます。許可すると回転・上下の判定にジャイロも使うので、振り向きや上下の動きが拾いやすくなります。許可しなくてもカメラだけの判定で使えます。画面下の「センサー」欄で状態と回転・上下の速度（度／秒）を確認できます</li>
+          <li>紙袋や手提げ袋は「人」には数えません。人と判定するのは人物そのものだけです</li>
+          <li>デモでは、静止・手ぶれ・近づく人・回転・上下・前進・後退・横移動の順に、動き判定がどう切り替わるかを確認できます</li>
+          <li>ポール・木の幹・縁石は画像の輪郭から拾います。背景と色や明るさが近いもの、細い枝や鎖は拾えないことがあります</li>
+          <li>動作中は、数値などの詳細は最初は折りたたんだ（隠れた）状態で始まります。右下の「詳細を表示」ボタンを押すと、判定の数値や内訳、操作ボタンが表示されます。もう一度押すか、カメラ映像の部分をタップすると隠れて、映像を大きく表示できます。隠している間も、上の「安全／危険」の表示と、アラーム音・振動・音声ガイドはそのまま働きます。止めるときは、詳細を表示してから「停止」を押してください</li>
+          <li>音で判断する仕組みなので、イヤホン（片耳）かスピーカー音量を上げて使ってください</li>
+          <li>アラームは「注意＝ゆっくり／接近＝速く／危険＝非常に速く高い音」に変わります</li>
+          <li>振動でも知らせます（初期設定はオン）。注意＝1回、接近＝2回、危険＝3回と、危険度で振動の回数が変わります。画面下の「振動テスト」で、今の端末で振動するかをその場で確かめられます</li>
+          <li>iPhoneの振動について：Safariには公式の振動APIがないため、iOS 18以降のトグルスイッチ要素を切り替えたときに鳴る小さな触覚フィードバックを使う非公式な方法で代用しています。Androidなど振動APIがある端末では、そちらを優先します。iPhoneでは、ブラウザの制限でタップなどの操作をきっかけにしたときしか鳴らない場合や、スイッチの振動が弱く感じられる場合があります。そのときは音と音声ガイドを頼りにしてください（将来ネイティブアプリ化する際は公式の触覚フィードバックに置き換える前提の試作実装です）</li>
+          <li>距離は「遠い／近い／すぐ近く」の3段階で推定します。見かけの大きさだけでなく、地面との接地点の位置と、大きくなる速さ（近づくほど速く拡大する）も合わせた判定で、急に近づく物は一段近く見積もります</li>
+          <li>足元の危険は少し低く太い音で鳴り、区別できます</li>
+          <li>まず止まった状態や安全な場所で、拾える範囲を確かめてから使ってください</li>
+        </ul>
+        <div class="caution" role="note" style="margin-top:14px">
+          <strong>試作品です。</strong>
+          細い障害物・暗い場所・ガラス・速く近づく自転車など、検知できない危険があります。
+          白杖や周囲の確認の代わりにはなりません。歩行中の画面注視はせず、音だけを頼りにしてください。
+        </div>
+        </div>
+      </details>
+    </main>
+
+    <!-- ================= running view ================= -->
+    <div id="runView" aria-live="off">
+      <div id="statusBanner" class="lv0">
+        <div id="statusWord">安全</div>
+        <div id="statusDetail">危険は検知されていません</div>
+      </div>
+      <div id="stage" title="タップで詳細の表示／非表示を切り替え">
+        <video id="cam" playsinline muted autoplay></video>
+        <canvas id="demoCanvas" width="640" height="480"></canvas>
+        <canvas id="overlay"></canvas>
+        <div id="dangerFrame"></div>
+        <span id="stageHint" aria-hidden="true">映像をタップで詳細を隠せます</span>
+        <button id="panelToggle" type="button" aria-pressed="true">詳細を表示</button>
+      </div>
+      <div id="readout">
+        <div><span class="k">動き</span><span class="v" id="roMove">—</span></div>
+        <div><span class="k">前方</span><span class="v" id="roFront">—</span></div>
+        <div><span class="k">足元</span><span class="v" id="roFoot">—</span></div>
+        <div><span class="k">アラーム</span><span class="v" id="roAlarm">—</span></div>
+        <div><span class="k">検出モデル</span><span class="v" id="roModel">—</span></div>
+      </div>
+      <div id="readout2" aria-label="動き判定の内訳">
+        <div><span class="k">前後</span><span class="v" id="roMF">—</span></div>
+        <div><span class="k">回転</span><span class="v" id="roMR">—</span></div>
+        <div><span class="k">上下</span><span class="v" id="roMV">—</span></div>
+        <div><span class="k">横移動</span><span class="v" id="roML">—</span></div>
+      </div>
+      <div id="readout3" aria-label="モーションセンサーの状態">
+        <div><span class="k">センサー</span><span class="v" id="roSensor">—</span></div>
+        <div><span class="k">回転速度</span><span class="v" id="roGyroYaw">—</span></div>
+        <div><span class="k">上下速度</span><span class="v" id="roGyroPitch">—</span></div>
+      </div>
+      <div id="controls">
+        <button class="ctlBtn stop" id="btnStop" type="button">停止</button>
+        <button class="ctlBtn" id="btnSound" type="button">アラーム音：<span class="state">オン</span></button>
+        <button class="ctlBtn" id="btnVoice" type="button">音声ガイド：<span class="state">オン</span></button>
+        <button class="ctlBtn" id="btnSens" type="button">感度：<span class="state">標準</span></button>
+        <button class="ctlBtn" id="btnHaptics" type="button">振動：<span class="state">オン</span></button>
+        <button class="ctlBtn" id="btnHapticTest" type="button">振動テスト</button>
+      </div>
+    </div>
+
+    <!-- iOS向け非公式バイブレーション用：画面外のトグルスイッチ群。
+         iOS 18以降、<input type="checkbox" switch> の切り替え時に
+         Taptic Engine の微振動が鳴る仕様を利用する。label を JS から
+         click() するとスイッチが切り替わり、1回の触覚フィードバックが起きる。
+         速い連打に対応するため複数個を順番に使う（ローテーション）。
+         display:none にすると切り替え自体が働かない可能性があるため、
+         画面外＋ほぼ透明で残す -->
+    <div aria-hidden="true" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:.01;pointer-events:none">
+      <label class="hapticLabel"><input type="checkbox" switch class="hapticSwitch" tabindex="-1"></label>
+      <label class="hapticLabel"><input type="checkbox" switch class="hapticSwitch" tabindex="-1"></label>
+      <label class="hapticLabel"><input type="checkbox" switch class="hapticSwitch" tabindex="-1"></label>
+      <label class="hapticLabel"><input type="checkbox" switch class="hapticSwitch" tabindex="-1"></label>
+    </div>
+
+    <canvas id="footCanvas" width="160" height="120" style="display:none"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+    <script>
+      'use strict';
+
+      /* ================= 設定 ================= */
+      var SENS = [
+        { name: '低',   mult: 1.35, footAdd: 0.10 },
+        { name: '標準', mult: 1.00, footAdd: 0.00 },
+        { name: '高',   mult: 0.70, footAdd: -0.08 }
+      ];
+      var sensIdx = 1;
+
+      /* handbag（紙袋・手提げ袋）と backpack は「人」ではないので対象にしない。
+         以前は両方を「人」に割り当てていたため、床の紙袋が「人」と表示され、
+         静止中の接近監視でも人として数えられていた。人が背負うリュックは
+         人物そのものが別途 person として検出される */
+      var LABELS = {
+        person: '人', bicycle: '自転車', car: '車', motorcycle: 'バイク',
+        bus: 'バス', truck: 'トラック', dog: '犬', cat: '猫',
+        chair: '椅子', bench: 'ベンチ', 'traffic light': '信号機',
+        'stop sign': '標識', 'fire hydrant': '消火栓', 'potted plant': '植木鉢',
+        suitcase: '荷物', skateboard: 'スケートボード'
+      };
+      var TARGETS = Object.keys(LABELS);
+
+      /* アラーム仕様：危険度でテンポと音程が変わる */
+      var ALARM = [
+        null,
+        { interval: 1150, freq: 660,  dur: 0.09, label: 'ゆっくり' },
+        { interval: 520,  freq: 880,  dur: 0.09, label: '速い' },
+        { interval: 240,  freq: 1245, dur: 0.11, label: '非常に速い' }
+      ];
+      var LEVEL_WORDS = ['安全', '注意', '接近', '危険'];
+
+      /* ================= 状態 ================= */
+      var mode = null;              // 'cam' | 'demo'
+      var running = false;
+      var model = null;
+      var modelFailed = false;
+      var stream = null;
+      var wakeLock = null;
+
+      var soundOn = true;
+      var voiceOn = true;
+      var hapticsOn = true;
+
+      var frontScore = 0;           // 0..1 前方脅威スコア
+      var frontLabel = '';
+      var frontBoxes = [];          // 描画用
+      var obstScore = 0;            // 縦長の障害物（ポール・木の幹など）の距離スコア
+      var obstRaw = 0;
+      var prevObstW = 0, prevObstAt = 0;  // 障害物の looming（幅の拡大速度）用
+      var obstBoxN = null;          // 正規化座標の障害物ボックス
+      var modelState = 'loading';   // 'loading' | 'ready' | 'failed'
+      var footScore = 0;            // 0..1 足元スコア（平滑化済み）
+      var footRaw = 0;
+      var level = 0;                // 総合危険度 0..3
+      var levelSource = 'none';     // 'front' | 'foot'
+      var prevThreats = [];         // 接近速度推定用
+      var lastDetectAt = 0;
+
+      /* 段階判定：動き判定（改修3）の状態 */
+      var lumaRing = [];            // 基準フレーム用の輝度リングバッファ（160x120）
+      var flowEmaX = 0, flowEmaY = 0, flowEmaDiv = 0;   // 画面の流れ（平滑化済み）
+      var agreeEma = 0, divAgreeEma = 0, parallaxEma = 1, signAgreeEma = 0;
+      var motionKind = 'still';     // 'still'|'forward'|'back'|'yaw'|'pitch'|'lateral'
+      var kindCand = 'still', kindCandSince = 0, kindCandAt = 0;
+      var compFB = '', compYaw = '', compPitch = '', compLat = '';  // 内訳表示用
+      var weakFB = '', weakYaw = '', weakPitch = '', weakLat = '';  // 弱い流れの内訳表示用
+      var moverScore = 0;           // 動いている物（接近・横切り）のスコア
+      var moverLabel = '';
+      var moverStreak = 0;          // 移動物の候補が連続した検出回数（1回だけの誤検出では鳴らさない）
+      var moverStreakLabel = '';
+      var movingSince = 0;          // 前進・横移動に入った時刻（武装までの確認時間に使う）
+
+      /* モーションセンサー（DeviceMotionEvent：ジャイロ＋加速度）。
+         回転・上下は画像の流れよりジャイロの方が直接的で速いので、
+         センサーが生きている間はそちらを優先して判定に混ぜる */
+      var sensorState = '未開始';   // 表示用：未開始／許可済み／許可されず／非対応／待機中 など
+      var sensorLive = false;       // 直近にセンサーイベントが来ているか
+      var lastSensorAt = 0;
+      var gyroYawEma = 0;           // 左右の回転速度（度/秒）。負＝右向き、正＝左向き
+      var gyroPitchEma = 0;         // 上下の回転速度（度/秒）。正＝上向き、負＝下向き
+      var sensorListening = false;
+
+      var audioCtx = null;
+      var lastBeepAt = 0;
+      var lastSpokeAt = 0;
+      var lastSpokenKey = '';
+
+      var $ = function (id) { return document.getElementById(id); };
+      var startScreen = $('startScreen'), runView = $('runView');
+      var video = $('cam'), demoCanvas = $('demoCanvas'), overlay = $('overlay');
+      var footCanvas = $('footCanvas');
+      var banner = $('statusBanner'), statusWord = $('statusWord'), statusDetail = $('statusDetail');
+      var dangerFrame = $('dangerFrame');
+
+      /* ================= 音 ================= */
+      function ensureAudio() {
+        if (!audioCtx) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) audioCtx = new AC();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      }
+      function beep(freq, dur, type) {
+        if (!audioCtx || !soundOn) return;
+        var t = audioCtx.currentTime;
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.55, t + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(t); osc.stop(t + dur + 0.03);
+      }
+      /* ================= 振動（触覚フィードバック） =================
+         2系統ある。①標準の Vibration API（Android等）：パターン振動が使える。
+         ②iOS向け非公式ハック：Safari には振動APIがないため、iOS 18以降の
+         <input type="checkbox" switch> を切り替えたときに鳴る Taptic Engine の
+         微振動を利用する。隠しスイッチの <label> を JS から click() すると
+         1回分の触覚が返るので、回数と間隔でパターンを作る。
+         制約（正直な留保）：②はユーザーのタップ等の操作（User Activation）を
+         起点にしないと鳴らない場合があり、アラームのような自動発火では
+         端末・ブラウザの状態によって鳴らないことがある。また振動の強さは
+         スイッチ切り替えの固定の弱さで、強弱は付けられない（回数で代用）。
+         ネイティブ化の際は公式の触覚フィードバック（UIFeedbackGenerator等）
+         に置き換える前提の試作実装。①が使える端末では①を優先し、②は使わない */
+      var hapticLabels = null;
+      var hapticIdx = 0;
+      function getHapticLabels() {
+        if (!hapticLabels) {
+          hapticLabels = document.querySelectorAll('.hapticLabel');
+        }
+        return hapticLabels;
+      }
+      function switchTick() {
+        var labels = getHapticLabels();
+        if (!labels || !labels.length) return false;
+        var lbl = labels[hapticIdx % labels.length];
+        hapticIdx++;
+        try { lbl.click(); return true; } catch (e) { return false; }
+      }
+      function fireSwitchPattern(ticks, gapMs) {
+        for (var i = 0; i < ticks; i++) {
+          if (i === 0) { switchTick(); continue; }
+          (function (delay) { setTimeout(switchTick, delay); })(i * gapMs);
+        }
+      }
+      /* 危険度に応じた振動。force=true のときはオン/オフ設定に関わらず鳴らす（テスト用） */
+      function fireHaptics(lv, force) {
+        if (!hapticsOn && !force) return;
+        if (lv <= 0) return;
+        /* ① 標準APIがあればパターン振動を優先（成功したら②は使わない） */
+        if (navigator.vibrate) {
+          try {
+            var pat = lv === 3 ? [80, 40, 80, 40, 80] : lv === 2 ? [50, 60, 50] : [35];
+            if (navigator.vibrate(pat)) return;
+          } catch (e) {}
+        }
+        /* ② iOSスイッチハック：注意=1回／接近=2回／危険=3回 */
+        var ticks = lv === 3 ? 3 : lv === 2 ? 2 : 1;
+        var gap = lv === 3 ? 75 : 95;
+        fireSwitchPattern(ticks, gap);
+      }
+      function alarmTick(now) {
+        if (!running || level === 0) return;
+        var spec = ALARM[level];
+        if (now - lastBeepAt < spec.interval) return;
+        lastBeepAt = now;
+        if (levelSource === 'foot') {
+          /* 足元は低く太い音で区別する */
+          beep(spec.freq * 0.62, spec.dur, 'triangle');
+          if (level === 3) setTimeout(function () { beep(spec.freq * 0.62, spec.dur, 'triangle'); }, 130);
+        } else {
+          beep(spec.freq, spec.dur, 'sine');
+        }
+        /* 音と同じタイミング・同じ危険度で振動も鳴らす */
+        fireHaptics(level, false);
+      }
+      function speak(text, key) {
+        if (!voiceOn || !('speechSynthesis' in window)) return;
+        var now = performance.now();
+        if (now - lastSpokeAt < 4000 && key === lastSpokenKey) return;
+        if (now - lastSpokeAt < 1800) return;
+        lastSpokeAt = now; lastSpokenKey = key;
+        try {
+          speechSynthesis.cancel();
+          var u = new SpeechSynthesisUtterance(text);
+          u.lang = 'ja-JP'; u.rate = 1.15;
+          speechSynthesis.speak(u);
+        } catch (e) {}
+      }
+
+      /* ================= モーションセンサー（ジャイロ） =================
+         DeviceMotionEvent.rotationRate は端末座標系の角速度（度/秒）：
+         alpha＝画面法線まわり、beta＝画面の横軸まわり、gamma＝画面の縦軸まわり。
+         縦持ちで背面カメラを前に向けた姿勢では、
+         左右の振り向き＝gamma（負で右、正で左）、上下の傾け＝beta（正で上、負で下）。
+         横持ち（画面回転 ±90度）のときは軸を入れ替える */
+      function onDeviceMotion(e) {
+        var rr = e && e.rotationRate;
+        if (!rr) return;
+        var ang = 0;
+        try {
+          if (window.screen && screen.orientation && typeof screen.orientation.angle === 'number') ang = screen.orientation.angle;
+          else if (typeof window.orientation === 'number') ang = window.orientation;
+        } catch (err) {}
+        var yawRate, pitchRate;
+        if (ang === 90) { yawRate = -rr.beta; pitchRate = rr.gamma; }
+        else if (ang === 270 || ang === -90) { yawRate = rr.beta; pitchRate = -rr.gamma; }
+        else { yawRate = rr.gamma; pitchRate = rr.beta; }
+        if (yawRate === null || yawRate === undefined || pitchRate === null || pitchRate === undefined) return;
+        gyroYawEma = gyroYawEma * 0.55 + yawRate * 0.45;
+        gyroPitchEma = gyroPitchEma * 0.55 + pitchRate * 0.45;
+        lastSensorAt = performance.now();
+        sensorLive = true;
+      }
+      /* iOS 13以降は requestPermission をユーザーのタップの中で呼ぶ必要がある。
+         カメラ開始ボタンのハンドラ先頭（getUserMedia より前）で呼ぶこと */
+      function requestMotionPermission() {
+        if (sensorListening) return;
+        sensorListening = true;
+        var DM = window.DeviceMotionEvent;
+        if (!DM) { sensorState = '非対応'; return; }
+        window.addEventListener('devicemotion', onDeviceMotion);
+        if (typeof DM.requestPermission === 'function') {
+          sensorState = '許可待ち';
+          DM.requestPermission().then(function (res) {
+            sensorState = res === 'granted' ? '許可済み' : '許可されず';
+            if (res !== 'granted') sensorLive = false;
+          }).catch(function () { sensorState = '許可されず'; });
+        } else {
+          sensorState = '待機中';
+        }
+      }
+      function sensorActive(now) {
+        return sensorLive && (now - lastSensorAt < 1500) &&
+          sensorState !== '許可されず' && sensorState !== '非対応';
+      }
+
+      /* ================= 危険度評価 =================
+         距離は3段階で推定する：1=遠い（注意）／2=近い（接近）／3=すぐ近く（危険）。
+         距離スコアは単一フレームの大きさだけでなく、接地点の位置と
+         時間的な拡大（looming）を複合したもの（scoreDetections 参照） */
+      var DIST_WORDS = ['—', '遠い', '近い', 'すぐ近く'];
+      var KIND_WORDS = { still: '静止', forward: '前進', back: '後退', yaw: '回転', pitch: '上下', lateral: '横移動' };
+      function moveKindWord() {
+        if (motionKind === 'yaw' && compYaw) return '回転（' + compYaw + '）';
+        if (motionKind === 'pitch' && compPitch) return '上下（' + compPitch + '）';
+        if (motionKind === 'lateral' && compLat) return '横移動（' + compLat + '）';
+        return KIND_WORDS[motionKind] || '静止';
+      }
+      function frontLevelFromScore(s) {
+        var m = SENS[sensIdx].mult;
+        if (s >= 0.42 * m) return 3;
+        if (s >= 0.20 * m) return 2;
+        if (s >= 0.08 * m) return 1;
+        return 0;
+      }
+      function footLevelFromScore(s) {
+        var a = SENS[sensIdx].footAdd;
+        if (s >= 0.70 + a) return 3;
+        if (s >= 0.55 + a) return 2;
+        if (s >= 0.42 + a) return 1;
+        return 0;
+      }
+      function evaluate() {
+        /* 段階判定：動き判定（改修3）で、見るべき危険を切り替える。
+           静止・回転・上下・後退の間は静止物・足元では鳴らさず、動いている物だけを見る。
+           前進・横移動（カメラ位置の移動）の間だけ、前方（接近）＋足元を見る。
+           前進・横移動に入っても 600ms は「確認中」として武装しない：
+           座ったままの手の動きで一瞬だけ前進・横移動に化けても鳴らさないため。
+           移動物（mover）は「静止」が確定しているときだけ数える：
+           カメラを振ると画面内の物の枠が横に流れて「近づいてくる物」に
+           見えてしまうので、回転・上下の間は接近とはみなさない */
+        var nowEv = performance.now();
+        var movingRaw = (motionKind === 'forward' || motionKind === 'lateral');
+        var moving = movingRaw && movingSince > 0 && (nowEv - movingSince > 600);
+        if (motionKind !== 'still') moverScore *= 0.7;
+        var combScore = moving ? Math.max(frontScore, obstScore) : 0;
+        var combIsObst = obstScore > frontScore && obstScore > 0;
+        var combLabel = combIsObst ? '障害物' : frontLabel;
+        var fl = frontLevelFromScore(combScore);
+        var mv = motionKind === 'still' ? frontLevelFromScore(moverScore) : 0;
+        var ftl = moving ? footLevelFromScore(footScore) : 0;
+        var prev = level;
+        if (ftl > 0 && ftl >= fl && ftl >= mv) { level = ftl; levelSource = 'foot'; }
+        else if (mv > fl) { level = mv; levelSource = 'mover'; }
+        else if (fl > 0) { level = fl; levelSource = 'front'; }
+        else { level = 0; levelSource = 'none'; }
+
+        banner.className = 'lv' + level + (level === 3 ? ' pulse' : '');
+        banner.id = 'statusBanner';
+        statusWord.textContent = LEVEL_WORDS[level];
+        dangerFrame.className = level === 3 ? 'on' : '';
+        dangerFrame.id = 'dangerFrame';
+
+        if (level === 0) {
+          statusDetail.textContent = moving
+            ? '危険は検知されていません'
+            : (movingRaw && motionKind !== 'still')
+              ? '移動の確認中：近づいてくる物だけを監視中'
+              : motionKind === 'still'
+                ? '静止中：近づいてくる物だけを監視中'
+                : '歩行ではありません：近づいてくる物だけを監視中';
+        } else if (levelSource === 'foot') {
+          statusDetail.textContent = level === 3
+            ? '足元に落下の危険（側溝・段差の疑い）'
+            : '足元に側溝・段差の疑い';
+        } else if (levelSource === 'mover') {
+          statusDetail.textContent = level === 3
+            ? (moverLabel || '何か') + 'がすぐ近くまで来ています'
+            : (moverLabel || '何か') + 'が近づいてきます';
+        } else {
+          statusDetail.textContent = (combLabel || '障害物') + 'が' + DIST_WORDS[level] + 'にあります';
+        }
+
+        $('roMove').textContent = moveKindWord();
+        $('roMF').textContent = compFB || weakFB || 'なし';
+        $('roMR').textContent = compYaw || weakYaw || 'なし';
+        $('roMV').textContent = compPitch || weakPitch || 'なし';
+        $('roML').textContent = compLat || weakLat || 'なし';
+        $('roFront').textContent =
+          (mv >= fl && moverScore > 0.05 && moverLabel)
+            ? moverLabel + '（' + (mv > 0 ? DIST_WORDS[mv] : '接近中') + '）'
+            : (moving && combLabel && combScore > 0.05)
+              ? combLabel + '（' + DIST_WORDS[fl] + '）'
+              : (moving || movingRaw ? 'なし' : '対象外');
+        var sAct = mode === 'cam' && sensorActive(nowEv);
+        $('roSensor').textContent = mode === 'demo' ? 'デモ（未使用）'
+          : sensorState === '待機中' && sensorLive ? '使用中'
+          : sensorState === '許可済み' ? (sAct ? '使用中' : '許可済み')
+          : sensorState;
+        $('roGyroYaw').textContent = sAct
+          ? (gyroYawEma <= -13 ? '右 ' : gyroYawEma >= 13 ? '左 ' : '') + Math.abs(Math.round(gyroYawEma)) + '°/秒'
+          : '—';
+        $('roGyroPitch').textContent = sAct
+          ? (gyroPitchEma >= 13 ? '上 ' : gyroPitchEma <= -13 ? '下 ' : '') + Math.abs(Math.round(gyroPitchEma)) + '°/秒'
+          : '—';
+        $('roModel').textContent = mode === 'demo' ? 'デモ'
+          : modelState === 'ready' ? '動作中'
+          : modelState === 'failed' ? '画像解析のみ' : '読込中';
+        $('roFoot').textContent = !moving ? '鳴らさない'
+          : footScore >= 0.42 + SENS[sensIdx].footAdd
+            ? '側溝・段差の疑い' : '異常なし';
+        $('roAlarm').textContent = level === 0 ? 'なし'
+          : ALARM[level].label + (levelSource === 'foot' ? '（足元の音）' : '') + (hapticsOn ? '＋振動' + level + '回' : '');
+
+        if (level >= 2 && level > prev) {
+          if (levelSource === 'foot') speak('足元、注意。側溝か段差の疑い', 'foot' + level);
+          else if (levelSource === 'mover') speak((moverLabel || '何か') + 'が近づいてきます', 'mover' + level + moverLabel);
+          else if (combIsObst) speak('障害物、' + (level === 3 ? '危険' : '接近'), 'obst' + level);
+          else speak((frontLabel || '障害物') + '、' + (level === 3 ? '危険' : '接近'), 'front' + level + frontLabel);
+        }
+      }
+
+      /* ================= 前方：物体検出 ================= */
+      function scoreDetections(preds, vw, vh, dtMs) {
+        var best = 0, bestLabel = '', boxes = [];
+        var bestMover = 0, bestMoverLabel = '';
+        var now = performance.now();
+        var newThreats = [];
+        for (var i = 0; i < preds.length; i++) {
+          var p = preds[i];
+          /* 「人」は誤検出（袋や家具が人に見える等）が鳴動に直結するので
+             他のクラスより下限を高くする */
+          var minScore = p.class === 'person' ? 0.55 : 0.45;
+          if (TARGETS.indexOf(p.class) < 0 || p.score < minScore) continue;
+          var x = p.bbox[0], y = p.bbox[1], w = p.bbox[2], h = p.bbox[3];
+          var area = (w * h) / (vw * vh);
+          var bottomFrac = (y + h) / vh;
+          var cx = (x + w / 2) / vw;
+          /* 前フレームとの対応付け：拡大率（looming）と中心の移動速度を得る。
+             拡大が速い物は「見かけより近い」ので距離を一段繰り上げ、
+             縮小中の物は遠ざかっているので一段繰り下げる。
+             拡大・横切りが速い物は、停止中の監視対象（移動物）にもなる */
+          var growth = 0, dispRate = 0;
+          for (var j = 0; j < prevThreats.length; j++) {
+            var pt = prevThreats[j];
+            if (pt.cls !== p.class) continue;
+            var d = Math.abs(pt.cx - cx) + Math.abs(pt.cy - (y + h / 2) / vh);
+            if (d < 0.25 && pt.area > 0.001 && dtMs > 0) {
+              growth = ((area - pt.area) / pt.area) * (1000 / dtMs);
+              dispRate = d * (1000 / dtMs);
+            }
+          }
+          /* 距離スコア（複合）：見かけの大きさ × 接地点の低さ × looming × 進路中央 */
+          var loomF = 1;
+          if (growth > 1.8) loomF = 1.6;
+          else if (growth > 0.8) loomF = 1.3;
+          else if (growth < -0.3) loomF = 0.7;
+          var score = Math.sqrt(area) * (0.5 + 0.7 * bottomFrac) * loomF
+            * (1 - 0.3 * Math.abs(cx - 0.5) * 2);
+          var mv = 0;
+          /* 移動物として数えるのは「静止」が確定しているときだけ。
+             カメラの回転・上下・移動中は、静止物の枠も画面内を流れるため
+             接近と区別できない（座ったまま振っただけで鳴る主因だった） */
+          if (motionKind === 'still' && (growth > 0.9 || dispRate > 0.55) && area > 0.003) mv = score;
+          if (mv > bestMover) { bestMover = mv; bestMoverLabel = LABELS[p.class]; }
+          newThreats.push({ cls: p.class, cx: cx, cy: (y + h / 2) / vh, area: area });
+          boxes.push({ x: x, y: y, w: w, h: h, label: LABELS[p.class], score: score });
+          if (score > best) { best = score; bestLabel = LABELS[p.class]; }
+        }
+        prevThreats = newThreats;
+        frontBoxes = boxes;
+        /* 減衰つきで保持：検出が一瞬途切れてもアラームが暴れないように */
+        frontScore = Math.max(best, frontScore * 0.55);
+        frontLabel = best > 0 ? bestLabel : (frontScore > 0.04 ? frontLabel : '');
+        /* 移動物は2回連続で候補になったときだけ確定させる。
+           検出枠のブレ（大きさの跳ね）で1回だけ拡大率が跳ねても鳴らさない */
+        if (bestMover > 0) {
+          if (bestMoverLabel === moverStreakLabel) moverStreak++;
+          else { moverStreak = 1; moverStreakLabel = bestMoverLabel; }
+        } else { moverStreak = 0; moverStreakLabel = ''; }
+        if (moverStreak >= 2) {
+          moverScore = Math.max(bestMover, moverScore * 0.5);
+          moverLabel = bestMoverLabel;
+        } else {
+          moverScore *= 0.5;
+          if (moverScore < 0.04) moverLabel = '';
+        }
+        lastDetectAt = now;
+      }
+
+      /* ================= 動き判定（改修3）：カメラの動きの種類を分ける =================
+         少し前（REF_LAG 回前）の基準フレームと 10x8 ブロックで照合し、各ブロックの
+         移動ベクトル（画面の流れ）を得る。その全体パターンから
+         静止／前後（中心からの拡大・縮小）／回転（左右への均一な流れ）／
+         上下（均一な縦の流れ）／横移動（手前ほど大きく流れる＝視差あり）
+         を切り分ける。座っているときの手ぶれは流れが往復して打ち消し合い、
+         明るさの変化は平均差を引いて照合するので流れにならず、「静止」のままになる。
+         以前の「変化したブロックの割合」だけの判定では、ノイズや画面の
+         ちらつきでも移動中になってしまっていたため、この方式に置き換えた */
+      var REF_LAG = 2;
+      function resetMotion() {
+        lumaRing = [];
+        flowEmaX = 0; flowEmaY = 0; flowEmaDiv = 0;
+        agreeEma = 0; divAgreeEma = 0; parallaxEma = 1; signAgreeEma = 0;
+        motionKind = 'still'; kindCand = 'still'; kindCandSince = 0; kindCandAt = 0;
+        compFB = ''; compYaw = ''; compPitch = ''; compLat = '';
+        weakFB = ''; weakYaw = ''; weakPitch = ''; weakLat = '';
+        movingSince = 0;
+        moverStreak = 0; moverStreakLabel = '';
+        gyroYawEma = 0; gyroPitchEma = 0;
+      }
+      function medianOf(a) {
+        if (!a.length) return 0;
+        var s = a.slice().sort(function (p, q) { return p - q; });
+        var m = s.length >> 1;
+        return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+      }
+      function updateMotion(L, now) {
+        lumaRing.push(L);
+        if (lumaRing.length > REF_LAG + 1) lumaRing.shift();
+        var kind = 'still';
+        if (lumaRing.length > REF_LAG) {
+          /* まず2コマ前の基準フレームと照合する。速く振ったときは
+             ずれが大きすぎて対応ブロックが足りなくなるので、その場合は
+             1コマ前と照合し直す（前後は拡大が緩やかなので2コマ前の方が
+             分かりやすく、回転・上下・横は速い動きでも拾えるようにする） */
+          var res = computeFlow(L, lumaRing[0]);
+          if (res.n < 10) {
+            var res1 = computeFlow(L, lumaRing[lumaRing.length - 2]);
+            if (res1.n > res.n) res = res1;
+          }
+          if (res.n >= 10) {
+            flowEmaX = flowEmaX * 0.5 + res.medDx * 0.5;
+            flowEmaY = flowEmaY * 0.5 + res.medDy * 0.5;
+            flowEmaDiv = flowEmaDiv * 0.5 + res.divRaw * 0.5;
+            agreeEma = agreeEma * 0.5 + res.agreeRatio * 0.5;
+            divAgreeEma = divAgreeEma * 0.5 + res.divAgree * 0.5;
+            signAgreeEma = signAgreeEma * 0.5 + res.signAgree * 0.5;
+            /* 視差は横流れがはっきりあるときだけ更新する。小さな流れ
+               （手ぶれ等）で更新すると上下の速さ比のノイズで育ってしまい、
+               静止中の揺れが横移動に化ける */
+            if (Math.abs(res.medDx) >= 2) parallaxEma = parallaxEma * 0.6 + Math.min(3, res.par) * 0.4;
+            else parallaxEma = parallaxEma * 0.8 + 0.2;
+          } else {
+            /* 質感不足・真っ暗など：流れは弱まる方向に倒して静止へ戻す */
+            flowEmaX *= 0.8; flowEmaY *= 0.8; flowEmaDiv *= 0.8;
+            agreeEma *= 0.85; divAgreeEma *= 0.85; signAgreeEma *= 0.85;
+          }
+        }
+        /* ---- 種類の判定（内訳はそれぞれ独立に立てる） ---- */
+        var magF = Math.sqrt(flowEmaX * flowEmaX + flowEmaY * flowEmaY);
+        var fb = '', yaw = '', pitch = '', lat = '';
+        /* 拡大・縮小は、平行移動の流れが支配的なときは立てない（上下・横の
+           流れが質感の偏りで見かけの拡大に見えるのを防ぐ） */
+        if (Math.abs(flowEmaDiv) >= 0.5 && divAgreeEma >= 0.42 &&
+            (magF < 1.2 || Math.abs(flowEmaDiv) >= magF * 0.8)) fb = flowEmaDiv > 0 ? '前進' : '後退';
+        if (Math.abs(flowEmaX) >= 0.8 && Math.abs(flowEmaX) >= Math.abs(flowEmaY) * 0.65) {
+          /* 景色が右へ流れる＝カメラは左を向いた／左へ動いた。
+             横移動は視差で速さがばらつくため均一さ（agree）では測れない。
+             向きの一致（signAgree）＋視差で横移動を先に切り分ける */
+          if (parallaxEma >= 1.45 && signAgreeEma >= 0.6 && Math.abs(flowEmaX) >= 0.9) lat = flowEmaX < 0 ? '右' : '左';
+          else if (agreeEma >= 0.42) yaw = flowEmaX < 0 ? '右' : '左';
+        }
+        if (agreeEma >= 0.42 && Math.abs(flowEmaY) >= 0.8 && Math.abs(flowEmaY) >= Math.abs(flowEmaX) * 0.65) {
+          /* 景色が下へ流れる＝カメラは上を向いた */
+          pitch = flowEmaY > 0 ? '上' : '下';
+        }
+        /* ---- ジャイロ融合（カメラモードのみ） ----
+           回転・上下はジャイロが直接測れるので、センサーが生きていれば
+           そちらを正とする。画像の流れは速い振りや質感の偏りで取りこぼすが、
+           ジャイロは景色に依存しない。逆に、センサーがほぼ無回転を示して
+           いるときは、流れ由来の回転・上下はノイズとして却下する。
+           回転がはっきりしているときは、横移動（視差の誤認）も立てない */
+        if (mode === 'cam' && sensorActive(now)) {
+          var aYaw = Math.abs(gyroYawEma), aPitch = Math.abs(gyroPitchEma);
+          if (aYaw >= 13) { yaw = gyroYawEma < 0 ? '右' : '左'; lat = ''; }
+          else if (aYaw < 5 && Math.abs(flowEmaX) < 3) yaw = '';
+          if (aPitch >= 13) pitch = gyroPitchEma > 0 ? '上' : '下';
+          else if (aPitch < 5 && Math.abs(flowEmaY) < 3) pitch = '';
+          if (aYaw >= 13 || aPitch >= 13) lat = '';
+        }
+        compFB = fb; compYaw = yaw; compPitch = pitch; compLat = lat;
+        /* しきい値に届かない弱い流れも、内訳欄に「（弱）」と出して
+           「何も出ていない」状態にならないようにする（総合判定には使わない） */
+        weakFB = ''; weakYaw = ''; weakPitch = ''; weakLat = '';
+        if (!fb && Math.abs(flowEmaDiv) >= 0.3 && divAgreeEma >= 0.3) weakFB = (flowEmaDiv > 0 ? '前進' : '後退') + '（弱）';
+        if (!yaw && !lat && Math.abs(flowEmaX) >= 0.35 && Math.abs(flowEmaX) >= Math.abs(flowEmaY) * 0.6) {
+          if (parallaxEma >= 1.45 && signAgreeEma >= 0.45) weakLat = (flowEmaX < 0 ? '右' : '左') + '（弱）';
+          else if (agreeEma >= 0.28) weakYaw = (flowEmaX < 0 ? '右' : '左') + '（弱）';
+        }
+        if (!pitch && agreeEma >= 0.28 && Math.abs(flowEmaY) >= 0.35 && Math.abs(flowEmaY) >= Math.abs(flowEmaX) * 0.6) {
+          weakPitch = (flowEmaY > 0 ? '上' : '下') + '（弱）';
+        }
+        /* ジャイロが中くらいの回転を示しているときも（弱）として出す */
+        if (mode === 'cam' && sensorActive(now)) {
+          if (!yaw && !lat && !weakYaw && Math.abs(gyroYawEma) >= 6 && Math.abs(gyroYawEma) < 13) {
+            weakYaw = (gyroYawEma < 0 ? '右' : '左') + '（弱）';
+          }
+          if (!pitch && !weakPitch && Math.abs(gyroPitchEma) >= 6 && Math.abs(gyroPitchEma) < 13) {
+            weakPitch = (gyroPitchEma > 0 ? '上' : '下') + '（弱）';
+          }
+        }
+        if (fb) kind = fb === '前進' ? 'forward' : 'back';
+        else if (lat) kind = 'lateral';
+        else if (yaw && pitch) kind = Math.abs(flowEmaX) >= Math.abs(flowEmaY) ? 'yaw' : 'pitch';
+        else if (yaw) kind = 'yaw';
+        else if (pitch) kind = 'pitch';
+        /* ---- 状態遷移（ヒステリシス：静止へ戻るのは少し慎重に） ----
+           候補が1フレームだけ落ちたり、非静止どうしで揺れたりしても
+           タイマーをリセットしない。リセットすると、しきい値付近で
+           揺れる動きが永遠に切り替わらなくなる */
+        if (kind === motionKind) {
+          if (kindCand !== motionKind && now - kindCandAt < 350) {
+            /* 候補が短く落ちている間も、候補の継続時間で遷移を判定する */
+            var needK = kindCand === 'still' ? 650 : 180;
+            if (kindCandSince && now - kindCandSince >= needK) {
+              motionKind = kindCand; kindCandSince = 0;
+            }
+          } else {
+            kindCand = kind; kindCandSince = 0;
+          }
+        } else {
+          if (kindCand !== kind) {
+            var keepTimer = kindCand !== 'still' && kind !== 'still' && (now - kindCandAt < 400);
+            kindCand = kind;
+            if (!keepTimer) kindCandSince = now;
+          }
+          kindCandAt = now;
+          var need = kind === 'still' ? 650 : 180;
+          if (kindCandSince && now - kindCandSince >= need) {
+            motionKind = kind; kindCand = kind; kindCandSince = 0;
+          }
+        }
+        /* 前進・横移動の開始時刻を記録する（前方・足元の武装は
+           ここから 600ms 経ってから：evaluate 参照） */
+        if (motionKind === 'forward' || motionKind === 'lateral') {
+          if (!movingSince) movingSince = now;
+        } else {
+          movingSince = 0;
+        }
+      }
+      /* 基準フレーム ref に対する画面全体の流れを測る。
+         ブロックマッチング：各ブロックの移動ベクトル（dx, dy）を求める。
+         明るさの平均差を引いてから照合するので、露出変化では流れない。
+         探索は粗（4px刻み）→細（1px刻み）の2段で ±24px まで探す。
+         以前は ±6px しか探しておらず、手でカメラを振る速さでは
+         対応が付かず、回転・上下・横移動のブロックが丸ごと捨てられていた */
+      function computeFlow(L, ref) {
+        var vecs = [];
+        var bx, by, sx, sy, i2;
+        for (by = 0; by < 9; by++) {
+          for (bx = 0; bx < 10; bx++) {
+            var x0 = 10 + bx * 14, y0 = 6 + by * 12;
+            var pts = [], mean = 0;
+            for (sy = 1; sy < 12; sy += 3) for (sx = 1; sx < 14; sx += 3) {
+              var idx = (y0 + sy) * 160 + (x0 + sx);
+              pts.push(idx); mean += ref[idx];
+            }
+            mean /= pts.length;
+            var varr = 0;
+            for (i2 = 0; i2 < pts.length; i2++) { var dv0 = ref[pts[i2]] - mean; varr += dv0 * dv0; }
+            if (Math.sqrt(varr / pts.length) < 4) continue;   // 質感のないブロックは使えない
+            var sadAt = function (dx, dy) {
+              if (x0 + 1 - dx < 0 || x0 + 13 - dx >= 160 || y0 + 1 - dy < 0 || y0 + 11 - dy >= 120) return 1e12;
+              var off = -dy * 160 - dx, md = 0, k;
+              for (k = 0; k < pts.length; k++) md += L[pts[k]] - ref[pts[k] + off];
+              md /= pts.length;
+              var sad = 0;
+              for (k = 0; k < pts.length; k++) sad += Math.abs(L[pts[k]] - ref[pts[k] + off] - md);
+              return sad;
+            };
+            var bestSad = 1e12, bestDx = 0, bestDy = 0, cdx, cdy, rsad;
+            for (cdy = -24; cdy <= 24; cdy += 4) {
+              for (cdx = -24; cdx <= 24; cdx += 4) {
+                rsad = sadAt(cdx, cdy);
+                if (rsad < bestSad) { bestSad = rsad; bestDx = cdx; bestDy = cdy; }
+              }
+            }
+            var baseDx = bestDx, baseDy = bestDy;
+            for (cdy = baseDy - 3; cdy <= baseDy + 3; cdy++) {
+              for (cdx = baseDx - 3; cdx <= baseDx + 3; cdx++) {
+                if (cdx === baseDx && cdy === baseDy) continue;
+                rsad = sadAt(cdx, cdy);
+                if (rsad < bestSad) { bestSad = rsad; bestDx = cdx; bestDy = cdy; }
+              }
+            }
+            if (bestSad / pts.length > 16) continue;          // 対応が付かないブロックは捨てる
+            vecs.push({ cx: x0 + 7, cy: y0 + 6, dx: bestDx, dy: bestDy });
+          }
+        }
+        var out = { n: vecs.length, medDx: 0, medDy: 0, divRaw: 0, agreeRatio: 0, divAgree: 0, par: 1, signAgree: 0 };
+        if (!vecs.length) return out;
+        var dxs = [], dys = [];
+        for (i2 = 0; i2 < vecs.length; i2++) { dxs.push(vecs[i2].dx); dys.push(vecs[i2].dy); }
+        var medDx = medianOf(dxs), medDy = medianOf(dys);
+        var sumProj = 0, projCnt = 0, agree = 0;
+        var topDx = 0, topCnt = 0, botDx = 0, botCnt = 0, absDxS = [];
+        for (i2 = 0; i2 < vecs.length; i2++) {
+          var v = vecs[i2];
+          var rx = (v.cx - 80) / 80, ry = (v.cy - 60) / 60;
+          var rl = Math.sqrt(rx * rx + ry * ry);
+          if (rl > 0.22) { sumProj += (v.dx * rx + v.dy * ry) / rl; projCnt++; }
+          if (Math.abs(v.dx - medDx) <= 1.6 && Math.abs(v.dy - medDy) <= 1.6) agree++;
+          if ((medDx > 0 && v.dx > 0) || (medDx < 0 && v.dx < 0)) absDxS.push(Math.abs(v.dx));
+          if (v.cy < 36) { topDx += Math.abs(v.dx); topCnt++; }
+          if (v.cy > 84) { botDx += Math.abs(v.dx); botCnt++; }
+        }
+        var divRaw = projCnt ? sumProj / projCnt : 0;
+        var divAgree = 0;
+        if (projCnt && Math.abs(divRaw) > 0.05) {
+          var da = 0;
+          for (i2 = 0; i2 < vecs.length; i2++) {
+            var v2 = vecs[i2];
+            var rx2 = (v2.cx - 80) / 80, ry2 = (v2.cy - 60) / 60;
+            var rl2 = Math.sqrt(rx2 * rx2 + ry2 * ry2);
+            if (rl2 <= 0.22) continue;
+            var pj = (v2.dx * rx2 + v2.dy * ry2) / rl2;
+            if ((divRaw > 0 && pj > 0.25) || (divRaw < 0 && pj < -0.25)) da++;
+          }
+          divAgree = da / projCnt;
+        }
+        /* 視差の目安：下（手前）ほど横流れが大きいか、一部のブロックだけ
+           速く流れているか（手前の物は速く流れる）。
+           横流れ自体が小さいときは上下比がノイズで暴れるので計算しない */
+        var par = 1;
+        if (absDxS.length >= 10) {
+          var srt = absDxS.slice().sort(function (p, q) { return p - q; });
+          var medA = srt[srt.length >> 1];
+          var topAvg = topCnt ? topDx / topCnt : 0, botAvg = botCnt ? botDx / botCnt : 0;
+          /* 全体の流れが小さくても、手前（下部）だけ速く流れていれば視差はある */
+          if (medA >= 3 || (botAvg >= 2 && topAvg >= 0.8)) {
+            if (topCnt && botCnt) par = botAvg / Math.max(0.4, topAvg);
+            var tN = 3, tS = 0, ti;
+            for (ti = 0; ti < tN; ti++) tS += srt[srt.length - 1 - ti];
+            var p90 = (tS / tN) / Math.max(0.5, medA);
+            /* 量子化の丸め（2と3に割れる等）では視差とみなさない */
+            if (p90 > par && (tS / tN) - medA >= 1.5) par = p90;
+          }
+        }
+        /* 横流れの符号の一致率。視差のある横移動では速さはばらつくが
+           向きは揃うので、均一さ（agree）とは別にこれで見る */
+        var signCnt = 0;
+        for (i2 = 0; i2 < vecs.length; i2++) {
+          if ((medDx > 0 && vecs[i2].dx >= 1) || (medDx < 0 && vecs[i2].dx <= -1)) signCnt++;
+        }
+        out.medDx = medDx; out.medDy = medDy;
+        out.divRaw = divRaw; out.agreeRatio = agree / vecs.length;
+        out.divAgree = divAgree; out.par = par;
+        out.signAgree = vecs.length ? signCnt / vecs.length : 0;
+        return out;
+      }
+
+      /* ================= 画像解析：足元＋縦長の障害物 =================
+         COCO-SSD のクラスに無いポール・木の幹・縁石は、モデルではなく
+         輝度の輪郭解析で拾う。160x120 のグレースケールを両解析で共有する。 */
+      function analyzeImage(source) {
+        var ctx = footCanvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(source, 0, 0, 160, 120);
+        var img;
+        try { img = ctx.getImageData(0, 0, 160, 120).data; } catch (e) { return; }
+        var L = new Float32Array(160 * 120);
+        for (var i = 0; i < 160 * 120; i++) {
+          var o = i * 4;
+          L[i] = 0.2126 * img[o] + 0.7152 * img[o + 1] + 0.0722 * img[o + 2];
+        }
+        function lum(x, y) { return L[y * 160 + x]; }
+        updateMotion(L, performance.now());
+        /* 全体が真っ暗なら判定不能として減衰のみ */
+        var total = 0, n = 0;
+        for (var y0 = 0; y0 < 120; y0 += 6) for (var x0 = 0; x0 < 160; x0 += 6) { total += lum(x0, y0); n++; }
+        if (total / n < 20) {
+          footRaw = 0; footScore *= 0.7;
+          obstRaw = 0; obstScore *= 0.6; obstBoxN = null;
+          return;
+        }
+        analyzeFootFrom(lum);
+        analyzeObstacleFrom(lum);
+      }
+
+      /* 足元：落ち込み（暗転）だけでなく、縁石のような「明るい段差」や
+         進行方向に沿って伸びる縁石（縦方向の段差）も拾う */
+      function analyzeFootFrom(lum) {
+        /* 行プロファイル：足元帯全体の横方向の段差 */
+        var R = [], y, x, s, c2;
+        for (y = 62; y < 119; y++) {
+          s = 0; c2 = 0;
+          for (x = 8; x < 152; x += 3) { s += lum(x, y); c2++; }
+          R.push(s / c2);
+        }
+        var hStep = 0, hY = 0, i, d;
+        for (i = 0; i + 3 < R.length; i++) {
+          d = Math.abs(R[i + 3] - R[i]);
+          if (d > hStep) { hStep = d; hY = i; }
+        }
+        /* その段差が幅方向に続いているか（縁石・段差の縁は横に長い） */
+        var agree = 0, t, yy, xx, a, b, ca, cb;
+        for (t = 0; t < 3; t++) {
+          var tx0 = 8 + t * 48;
+          a = 0; b = 0; ca = 0; cb = 0;
+          for (yy = 62 + Math.max(0, hY - 2); yy < 62 + hY + 2; yy++)
+            for (xx = tx0; xx < tx0 + 48; xx += 3) { a += lum(xx, yy); ca++; }
+          for (yy = 62 + hY + 3; yy < 62 + hY + 7 && yy < 119; yy++)
+            for (xx = tx0; xx < tx0 + 48; xx += 3) { b += lum(xx, yy); cb++; }
+          if (ca && cb && Math.abs(b / cb - a / ca) > 16) agree++;
+        }
+        /* 縁石・段差は「2本の平行な縁」を持つ。影のような単独の縁は割り引く */
+        function dblFactor(steps, peakIdx) {
+          var p2 = 0;
+          for (var k = 0; k < steps.length; k++) {
+            var dist = Math.abs(k - peakIdx);
+            if (dist >= 4 && dist <= 18 && steps[k] > p2) p2 = steps[k];
+          }
+          return (steps[peakIdx] > 0 && p2 / steps[peakIdx] >= 0.5) ? 1 : 0.45;
+        }
+        var rSteps = [], rPeak = 0;
+        for (i = 0; i + 3 < R.length; i++) { rSteps.push(Math.abs(R[i + 3] - R[i])); if (rSteps[i] === hStep) rPeak = i; }
+        var hEdgeScore = Math.min(1, hStep / 55) * (agree >= 2 ? 1 : 0.55) * dblFactor(rSteps, rPeak);
+
+        /* 列プロファイル：進行方向に沿って伸びる縁石の段差 */
+        var C = [], cx, cy;
+        for (cx = 8; cx < 152; cx++) {
+          s = 0; c2 = 0;
+          for (cy = 70; cy < 119; cy += 3) { s += lum(cx, cy); c2++; }
+          C.push(s / c2);
+        }
+        var vStep = 0, vPeak = 0;
+        for (i = 0; i + 6 < C.length; i++) {
+          d = Math.abs(C[i + 6] - C[i]);
+          if (d > vStep) { vStep = d; vPeak = i; }
+        }
+        var cSteps = [];
+        for (i = 0; i + 6 < C.length; i++) cSteps.push(Math.abs(C[i + 6] - C[i]));
+        var vCenterF = 1 - 0.4 * Math.abs((vPeak + 8) / 160 - 0.5) * 2;
+        var vEdgeScore = Math.min(1, vStep / 48) * dblFactor(cSteps, vPeak) * vCenterF;
+
+        /* 3分割カラム：落ち込み・盛り上がり・暗部・水平エッジ */
+        var bestCol = 0;
+        for (var c = 0; c < 3; c++) {
+          var cx0 = c * 53, cx1 = cx0 + 54;
+          var topSum = 0, botSum = 0, dark = 0, cnt = 0, botCnt = 0;
+          for (var ya = 74; ya < 86; ya += 2)
+            for (var xa = cx0; xa < cx1; xa += 2) { topSum += lum(xa, ya); cnt++; }
+          for (var yb = 106; yb < 118; yb += 2)
+            for (var xb = cx0; xb < cx1; xb += 2) {
+              var l = lum(xb, yb); botSum += l; botCnt++;
+              if (l < 45) dark++;
+            }
+          var topMean = topSum / cnt, botMean = botSum / botCnt;
+          var dropRatio = Math.max(0, (topMean - botMean) / Math.max(topMean, 1));
+          var riseRatio = Math.max(0, (botMean - topMean) / Math.max(botMean, 1));
+          var darkFrac = dark / botCnt;
+          var edge = 0, prevRow = null;
+          for (var ry = 78; ry < 116; ry += 2) {
+            var rs = 0, rc = 0;
+            for (var rx = cx0; rx < cx1; rx += 3) { rs += lum(rx, ry); rc++; }
+            var rm = rs / rc;
+            if (prevRow !== null) edge = Math.max(edge, Math.abs(rm - prevRow));
+            prevRow = rm;
+          }
+          var colScore = Math.min(1,
+            0.62 * dropRatio + 0.45 * riseRatio + 0.34 * darkFrac + 0.30 * Math.min(1, edge / 60));
+          if (c !== 1) colScore *= 0.85;
+          bestCol = Math.max(bestCol, colScore);
+        }
+        footRaw = Math.max(bestCol, hEdgeScore * 0.7, vEdgeScore * 0.7);
+        footScore = footScore * 0.45 + footRaw * 0.55;
+      }
+
+      /* 縦長の障害物：ポール・ボラード・木の幹。
+         草などの背景テクスチャは勾配の向きがばらばらだが、本物の縦エッジは
+         上下にわたって勾配の符号が一貫する。その一貫性（コヒーレンス）が
+         高い列を左右ペアにし、内側が背景と明るさで区別でき、下端が地面
+         近くまで届く帯を障害物とみなす */
+      function analyzeObstacleFrom(lum) {
+        var W = 160, H = 120;
+        var coh = new Float32Array(W), mag = new Float32Array(W);
+        var sgn = new Int8Array(W), bottomRow = new Int16Array(W);
+        var x, y;
+        for (x = 2; x < W - 2; x++) {
+          var sum = 0, asum = 0, n = 0, bot = -1;
+          for (y = 12; y <= 108; y += 2) {
+            var g = lum(x + 1, y) - lum(x - 1, y);
+            sum += g; asum += Math.abs(g); n++;
+            if (Math.abs(g) > 26 && y > bot) bot = y;
+          }
+          coh[x] = asum > 0 ? Math.abs(sum) / asum : 0;
+          mag[x] = asum / n;
+          sgn[x] = sum >= 0 ? 1 : -1;
+          bottomRow[x] = bot;
+        }
+        /* 一貫したエッジ列のラン（代表列＝勾配最大の列、符号、下端） */
+        var runs = [], start = -1, i;
+        function pushRun(a, b) {
+          var rep = a, rb = -1;
+          for (var k = a; k <= b; k++) {
+            if (mag[k] > mag[rep]) rep = k;
+            if (bottomRow[k] > rb) rb = bottomRow[k];
+          }
+          runs.push({ a: a, b: b, rep: rep, sign: sgn[rep], bot: rb });
+        }
+        for (i = 2; i < W - 2; i++) {
+          if (coh[i] > 0.45 && mag[i] > 14) { if (start < 0) start = i; }
+          else if (start >= 0) { pushRun(start, i - 1); start = -1; }
+        }
+        if (start >= 0) pushRun(start, W - 3);
+
+        var best = 0, bestBox = null;
+        for (var ai = 0; ai < runs.length; ai++) {
+          for (var bi = ai + 1; bi < runs.length; bi++) {
+            var lx = runs[ai].b, rx = runs[bi].a;
+            var wdt = rx - lx;
+            if (wdt < 3) continue;
+            if (wdt > 72) break;
+            /* 帯の左右の縁は勾配の符号が逆向きのはず */
+            if (runs[ai].sign === runs[bi].sign) continue;
+            var inS = 0, inC = 0, outS = 0, outC = 0, yy, xx, xo;
+            for (yy = 30; yy < 100; yy += 4) {
+              for (xx = lx + 2; xx < rx - 1; xx += 3) { inS += lum(xx, yy); inC++; }
+              for (xo = Math.max(2, lx - 12); xo < lx - 3; xo += 3) { outS += lum(xo, yy); outC++; }
+              for (xo = rx + 3; xo < Math.min(W - 2, rx + 12); xo += 3) { outS += lum(xo, yy); outC++; }
+            }
+            if (!inC || !outC) continue;
+            var contrast = Math.abs(inS / inC - outS / outC);
+            if (contrast < 14) continue;
+            var botPx = Math.max(runs[ai].bot, runs[bi].bot);
+            if (botPx < 78) continue;
+            var bottomFrac = botPx / H;
+            var wf = wdt / W;
+            var cxN = (lx + rx) / 2 / W;
+            var centerF = 1 - 0.35 * Math.abs(cxN - 0.5) * 2;
+            /* 距離スコアは物体検出と同じ物差し：幅の見かけの大きさ × 下端の低さ */
+            var sc = Math.sqrt(wf) * (0.5 + 0.7 * bottomFrac) * centerF * Math.min(1, contrast / 30 + 0.35);
+            if (sc > best) {
+              best = sc;
+              bestBox = { x: lx / W, y: 0.06, w: wf, h: Math.max(0.2, bottomFrac - 0.06) };
+            }
+          }
+        }
+        /* looming：前回より帯の幅が速く広がっていたら、距離を一段近く見積もる */
+        var nowOb = performance.now();
+        if (best > 0 && bestBox && prevObstW > 0 && prevObstAt) {
+          var dtOb = (nowOb - prevObstAt) / 1000;
+          if (dtOb > 0.05 && dtOb < 1.5) {
+            var og = ((bestBox.w - prevObstW) / prevObstW) / dtOb;
+            if (og > 1.2) best *= 1.35;
+            else if (og > 0.5) best *= 1.18;
+          }
+        }
+        if (best > 0 && bestBox) { prevObstW = bestBox.w; prevObstAt = nowOb; }
+        else if (nowOb - prevObstAt > 800) prevObstW = 0;
+
+        obstRaw = best;
+        if (best > 0) {
+          obstScore = Math.max(best, obstScore * 0.5 + best * 0.5);
+          obstBoxN = bestBox;
+        } else {
+          obstScore *= 0.55;
+          if (obstScore < 0.05) obstBoxN = null;
+        }
+      }
+
+      /* ================= 描画オーバーレイ ================= */
+      function drawOverlay(vw, vh) {
+        var stage = $('stage');
+        var cw = stage.clientWidth, ch = stage.clientHeight;
+        if (overlay.width !== cw || overlay.height !== ch) { overlay.width = cw; overlay.height = ch; }
+        var ctx = overlay.getContext('2d');
+        ctx.clearRect(0, 0, cw, ch);
+        if (!vw || !vh) return;
+        var scale = Math.max(cw / vw, ch / vh);
+        var ox = (cw - vw * scale) / 2, oy = (ch - vh * scale) / 2;
+        for (var i = 0; i < frontBoxes.length; i++) {
+          var b = frontBoxes[i];
+          var hot = b.score >= 0.20;
+          ctx.lineWidth = hot ? 5 : 3;
+          ctx.strokeStyle = b.score >= 0.42 ? '#ff3b30' : (hot ? '#ff8c1a' : '#f5c518');
+          ctx.strokeRect(ox + b.x * scale, oy + b.y * scale, b.w * scale, b.h * scale);
+          ctx.font = '700 20px sans-serif';
+          var tw = ctx.measureText(b.label).width + 14;
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.fillRect(ox + b.x * scale, Math.max(0, oy + b.y * scale - 28), tw, 28);
+          ctx.fillStyle = '#10130c';
+          ctx.fillText(b.label, ox + b.x * scale + 7, oy + b.y * scale - 7);
+        }
+        /* 縦長の障害物（ポール・木の幹）のボックス */
+        if (obstBoxN && obstScore > 0.05) {
+          var bx = ox + obstBoxN.x * vw * scale, by = oy + obstBoxN.y * vh * scale;
+          var bw2 = obstBoxN.w * vw * scale, bh2 = obstBoxN.h * vh * scale;
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = obstScore >= 0.42 ? '#ff3b30' : (obstScore >= 0.20 ? '#ff8c1a' : '#f5c518');
+          ctx.strokeRect(bx, by, bw2, bh2);
+          ctx.font = '700 20px sans-serif';
+          var otw = ctx.measureText('障害物').width + 14;
+          ctx.fillStyle = ctx.strokeStyle;
+          ctx.fillRect(bx, Math.max(0, by - 28), otw, 28);
+          ctx.fillStyle = '#10130c';
+          ctx.fillText('障害物', bx + 7, by - 7);
+        }
+        /* 足元エリアのガイド */
+        ctx.strokeStyle = 'rgba(255,255,255,.35)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 8]);
+        var fy = ch * 0.62;
+        ctx.strokeRect(cw * 0.06, fy, cw * 0.88, ch * 0.34);
+        ctx.setLineDash([]);
+        ctx.font = '600 14px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,.65)';
+        ctx.fillText('足元チェック範囲', cw * 0.06 + 6, fy + 20);
+      }
+
+      /* ================= カメラモード ================= */
+      var camBusy = false;
+      function camLoop() {
+        if (!running || mode !== 'cam') return;
+        var now = performance.now();
+        alarmTick(now);
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          /* 動き・足元・縦エッジの解析は、物体検出モデルの完了を待たずに
+             毎回（約130ms間隔で）実行する。以前はモデルの検出が終わるまで
+             次の解析が始まらず、実機では解析間隔が1秒近くまで伸びていた。
+             その間にカメラを振ると、基準フレームとのずれがブロック照合の
+             探索範囲を大きく超えて対応が付かなくなり、流れが測れないまま
+             捨てられていた（拡大・縮小はブロックごとの動きが小さいので
+             前後だけは出ていた）。回転・上下・横移動が出なかった主因がこれ */
+          analyzeImage(video);
+          /* 物体検出は裏で間引いて実行し、結果が来たら反映する */
+          if (!camBusy && model && !modelFailed && now - lastDetectAt > 200) {
+            camBusy = true;
+            var dt = lastDetectAt ? now - lastDetectAt : 150;
+            model.detect(video).then(function (preds) {
+              scoreDetections(preds, video.videoWidth, video.videoHeight, dt);
+            }).catch(function () {}).then(function () { camBusy = false; });
+          }
+          evaluate();
+          drawOverlay(video.videoWidth, video.videoHeight);
+        }
+        setTimeout(camLoop, 130);
+      }
+
+      /* ================= デモモード =================
+         場面を遠景・近景の2層で描き、カメラの動き（平行移動・拡大）を
+         再現して、本物の動き判定パイプライン（analyzeImage）に通す。
+         静止→近づく人→手ぶれ→回転→上下→前進→後退→横移動→
+         前進してポールに接近→足元の側溝→静止（目の前のポール）の順に進む */
+      var demoStart = 0;
+      var sceneFar = null, sceneNear = null;
+      function buildScenes() {
+        if (sceneFar) return;
+        var i, x, y;
+        sceneFar = document.createElement('canvas');
+        sceneFar.width = 1120; sceneFar.height = 720;
+        var f = sceneFar.getContext('2d');
+        f.fillStyle = '#7d8ea0'; f.fillRect(0, 0, 1120, 400);
+        f.fillStyle = '#98a8ba';
+        for (i = 0; i < 7; i++) { f.beginPath(); f.ellipse(90 + i * 160, 60 + (i % 3) * 34, 52, 15, 0, 0, Math.PI * 2); f.fill(); }
+        /* 建物と窓（質感） */
+        var bx2, by2;
+        for (i = 0; i < 6; i++) {
+          bx2 = 30 + i * 185; by2 = 130 + (i % 2) * 50;
+          f.fillStyle = i % 2 ? '#5d6a78' : '#6b7885';
+          f.fillRect(bx2, by2, 140, 400 - by2);
+          f.fillStyle = '#c8d4de';
+          for (y = by2 + 18; y < 380; y += 30) for (x = bx2 + 14; x < bx2 + 126; x += 28) f.fillRect(x, y, 13, 16);
+        }
+        /* 地面と道 */
+        f.fillStyle = '#565e66'; f.fillRect(0, 400, 1120, 320);
+        f.strokeStyle = 'rgba(255,255,255,.45)'; f.lineWidth = 5;
+        f.beginPath(); f.moveTo(520, 400); f.lineTo(330, 720); f.stroke();
+        f.beginPath(); f.moveTo(600, 400); f.lineTo(790, 720); f.stroke();
+        f.strokeStyle = 'rgba(255,255,255,.28)'; f.lineWidth = 4;
+        for (i = 0; i < 5; i++) { f.beginPath(); f.moveTo(60, 440 + i * 58); f.lineTo(1060, 440 + i * 58); f.stroke(); }
+        /* 遠くのポールと木と人 */
+        f.fillStyle = '#3a3f45'; f.fillRect(300, 170, 11, 470); f.fillRect(836, 150, 13, 490);
+        f.fillStyle = '#476b4a';
+        f.beginPath(); f.ellipse(180, 300, 62, 78, 0, 0, Math.PI * 2); f.fill();
+        f.beginPath(); f.ellipse(980, 280, 70, 88, 0, 0, Math.PI * 2); f.fill();
+        f.fillStyle = '#20303e';
+        f.beginPath(); f.arc(640, 428, 9, 0, Math.PI * 2); f.fill();
+        f.fillRect(631, 437, 18, 46);
+        /* 全面にまだら模様（ブロック照合のための質感） */
+        for (i = 0; i < 2400; i++) {
+          x = (i * 373) % 1120; y = (i * 291) % 720;
+          f.fillStyle = 'rgba(' + (i % 2 ? '255,255,255' : '10,14,18') + ',' + (0.05 + (i % 5) * 0.02) + ')';
+          f.fillRect(x, y, 5 + (i % 4) * 3, 4 + (i % 3) * 3);
+        }
+        sceneNear = document.createElement('canvas');
+        sceneNear.width = 1120; sceneNear.height = 720;
+        var n = sceneNear.getContext('2d');
+        /* 手前のポール */
+        n.fillStyle = '#33383e'; n.fillRect(688, 110, 32, 486);
+        n.fillStyle = '#59616a'; n.fillRect(688, 110, 11, 486);
+        n.fillStyle = '#22262b'; n.fillRect(676, 588, 56, 10);
+        /* 下端の生け垣（手前ほど大きく流れる様子を作る） */
+        n.fillStyle = '#39543c'; n.fillRect(0, 516, 1120, 84);
+        n.fillStyle = '#476b4a';
+        for (i = 0; i < 46; i++) { n.beginPath(); n.ellipse(14 + i * 25, 524 + (i % 3) * 16, 20, 13, 0, 0, Math.PI * 2); n.fill(); }
+        n.fillStyle = 'rgba(255,255,255,.14)';
+        for (i = 0; i < 300; i++) { x = (i * 197) % 1120; y = 516 + (i * 89) % 80; n.fillRect(x, y, 4, 3); }
+      }
+      function drawLayer(ctx, img, ox, oy, z) {
+        ctx.save();
+        ctx.translate(320, 240); ctx.scale(z, z); ctx.translate(-320, -240);
+        ctx.drawImage(img, -240 + ox, -120 + oy);
+        ctx.restore();
+      }
+      function demoLoop() {
+        if (!running || mode !== 'demo') return;
+        buildScenes();
+        var ctx = demoCanvas.getContext('2d');
+        var W = 640, H = 480;
+        var t = ((performance.now() - demoStart) / 1000) % 37;
+
+        var camX = 0, camY = 0, zoom = 1, nearMul = 1;
+        var caption = '', front = 0, frontLbl = '', obst = 0, foot = 0, mvS = 0, mvL = '';
+        var boxes = [];
+        var personH = 0;
+
+        if (t < 3) {
+          caption = '静止：止まっていれば「静止」のまま';
+        } else if (t < 6) {
+          var k1 = (t - 3) / 3;
+          caption = '静止中：人が近づいてくると知らせます';
+          personH = 60 + k1 * 280;
+          mvS = 0.08 + k1 * 0.5; mvL = '人'; front = mvS; frontLbl = '人';
+        } else if (t < 8.5) {
+          var tt = t - 6;
+          caption = '手ぶれ：小さな往復の揺れでは「移動」になりません';
+          camX = Math.sin(tt * 8.5) * 2.5; camY = Math.cos(tt * 6.7) * 1.8;
+        } else if (t < 12) {
+          caption = '回転：景色が均一に横へ流れます（歩行ではありません）';
+          camX = -((t - 8.5) / 3.5) * 120;
+        } else if (t < 15.5) {
+          caption = '上下：景色が均一に縦へ流れます';
+          camY = ((t - 12) / 3.5) * 85;
+        } else if (t < 19.5) {
+          caption = '前進：景色が中心から外へ広がります';
+          zoom = 1 + ((t - 15.5) / 4) * 0.38;
+        } else if (t < 22.5) {
+          caption = '後退：景色が中心へ縮みます';
+          zoom = 1.38 - ((t - 19.5) / 3) * 0.38;
+        } else if (t < 26) {
+          caption = '横移動：手前の物ほど大きく流れます（視差）';
+          camX = -((t - 22.5) / 3.5) * 55; nearMul = 2.6;
+        } else if (t < 30) {
+          var k2 = (t - 26) / 4;
+          caption = '前進：ポールに近づくと危険度が上がります';
+          zoom = 1 + k2 * 0.5;
+          obst = 0.10 + k2 * 0.45;
+        } else if (t < 33.5) {
+          caption = '前進：足元の側溝も見ています';
+          zoom = 1.5 + ((t - 30) / 3.5) * 0.12;
+          foot = 0.82;
+        } else {
+          caption = '静止：目の前にポールがあっても鳴りません';
+          obst = 0.50;
+        }
+
+        /* 場面の描画：遠景→近景（近景は拡大・視差が大きい） */
+        ctx.fillStyle = '#7d8ea0'; ctx.fillRect(0, 0, W, H);
+        drawLayer(ctx, sceneFar, camX, camY, zoom);
+        drawLayer(ctx, sceneNear, camX * nearMul, camY * nearMul, 1 + (zoom - 1) * 1.6);
+
+        if (personH > 0) {
+          drawPerson(ctx, W / 2, H * 0.98 - personH, personH);
+          boxes.push({ x: W / 2 - personH * 0.22, y: H * 0.98 - personH, w: personH * 0.44, h: personH, label: '人', score: mvS });
+        }
+        if (t >= 26 && t < 30) {
+          var zn = 1 + (zoom - 1) * 1.6;
+          var px2 = 320 + (688 - 240 - 320) * zn, pw2 = 32 * zn;
+          boxes.push({ x: px2, y: 240 + (110 - 120 - 240) * zn + 240 - 240 * zn + 240 * (zn - 1), w: pw2, h: 486 * zn, label: '障害物', score: obst });
+        }
+        if (t >= 30 && t < 33.5) {
+          var gy = H * 0.80;
+          ctx.fillStyle = '#15181c'; ctx.fillRect(W * 0.08, gy, W * 0.84, H * 0.17);
+          ctx.strokeStyle = '#2c3138'; ctx.lineWidth = 5;
+          for (var gx = W * 0.14; gx < W * 0.92; gx += 34) {
+            ctx.beginPath(); ctx.moveTo(gx, gy + 4); ctx.lineTo(gx, gy + H * 0.17 - 4); ctx.stroke();
+          }
+        }
+        if (t >= 33.5) {
+          drawPole(ctx, W / 2, H * 0.98, 84, 430);
+          boxes.push({ x: W / 2 - 42, y: H * 0.98 - 430, w: 84, h: 430, label: '障害物', score: obst });
+        }
+
+        /* キャプション（判定の邪魔にならないよう上端に固定表示） */
+        ctx.fillStyle = 'rgba(8,10,12,.78)'; ctx.fillRect(0, 0, W, 40);
+        ctx.fillStyle = '#e8edf1'; ctx.font = '700 19px sans-serif';
+        ctx.fillText(caption, 12, 27);
+
+        /* 本物の解析パイプラインに通してから、危険側だけ台本で上書きする */
+        analyzeImage(demoCanvas);
+        frontScore = front; frontLabel = frontLbl;
+        obstScore = obst; obstBoxN = null;
+        moverScore = mvS; moverLabel = mvL;
+        footRaw = foot; footScore = foot;
+        frontBoxes = boxes;
+
+        evaluate();
+        drawOverlay(W, H);
+        alarmTick(performance.now());
+        setTimeout(demoLoop, 130);
+      }
+      function drawPole(ctx, cx, baseY, wdt, hgt) {
+        ctx.fillStyle = '#3a3f45';
+        ctx.fillRect(cx - wdt / 2, baseY - hgt, wdt, hgt);
+        ctx.fillStyle = '#5b636c';
+        ctx.fillRect(cx - wdt / 2, baseY - hgt, Math.max(3, wdt * 0.35), hgt);
+        ctx.fillStyle = '#2c3034';
+        ctx.beginPath(); ctx.ellipse(cx, baseY, wdt * 0.85, 6, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      function drawPerson(ctx, cx, topY, hgt) {
+        var w = hgt * 0.44;
+        ctx.fillStyle = '#20303e';
+        ctx.beginPath(); ctx.arc(cx, topY + hgt * 0.13, hgt * 0.13, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(cx - w / 2, topY + hgt * 0.26, w, hgt * 0.74);
+      }
+
+      /* ================= 判定パネルの表示／非表示 ================= */
+      var panelsHidden = false;
+      function setPanelsHidden(hidden) {
+        panelsHidden = !!hidden;
+        runView.classList.toggle('panelsHidden', panelsHidden);
+        var toggleBtn = $('panelToggle');
+        if (toggleBtn) {
+          toggleBtn.textContent = panelsHidden ? '詳細を表示' : '詳細を隠す';
+          toggleBtn.setAttribute('aria-pressed', panelsHidden ? 'true' : 'false');
+        }
+        /* 隠した／戻した直後はキャンバスの表示サイズが変わる。
+           次のループで drawOverlay がサイズを合わせ直すので追加処理は不要 */
+      }
+      function togglePanels() { setPanelsHidden(!panelsHidden); }
+
+      /* ================= 開始・停止 ================= */
+      function showRun() {
+        startScreen.style.display = 'none';
+        runView.className = 'on';
+        /* 数値などの詳細は、最初は折りたたんだ状態で始める。
+           「詳細を表示」ボタン（または映像タップ）で開いて数値を見る */
+        setPanelsHidden(true);
+      }
+      function showStart(msg) {
+        runView.className = '';
+        panelsHidden = true;
+        var toggleBtn2 = $('panelToggle');
+        if (toggleBtn2) { toggleBtn2.textContent = '詳細を表示'; toggleBtn2.setAttribute('aria-pressed', 'true'); }
+        startScreen.style.display = '';
+        if (msg) $('startStatus').textContent = msg;
+      }
+      function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+          navigator.wakeLock.request('screen').then(function (wl) { wakeLock = wl; }).catch(function () {});
+        }
+      }
+      function loadModel() {
+        if (model || modelFailed) return;
+        if (typeof cocoSsd === 'undefined') { modelFailed = true; modelState = 'failed'; return; }
+        cocoSsd.load({ base: 'lite_mobilenet_v2' }).then(function (m) {
+          model = m; modelState = 'ready';
+        }).catch(function () { modelFailed = true; modelState = 'failed'; });
+      }
+
+      $('btnStartCam').addEventListener('click', function () {
+        ensureAudio();
+        /* モーションセンサーの許可は、ユーザーのタップの流れの中で
+           （getUserMedia の非同期処理より前に）求める必要がある（iOS） */
+        requestMotionPermission();
+        var st = $('startStatus');
+        st.textContent = 'カメラを起動しています…';
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          st.textContent = 'このブラウザではカメラが使えません。Safariで開いて試してください。';
+          return;
+        }
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        }).then(function (s) {
+          stream = s;
+          video.srcObject = s;
+          return video.play();
+        }).then(function () {
+          mode = 'cam'; running = true;
+          video.style.display = 'block'; demoCanvas.style.display = 'none';
+          frontScore = 0; footScore = 0; obstScore = 0; obstBoxN = null; level = 0; prevThreats = [];
+          resetMotion(); moverScore = 0; moverLabel = ''; prevObstW = 0; prevObstAt = 0;
+          showRun();
+          requestWakeLock();
+          loadModel();
+          st.textContent = '';
+          camLoop();
+        }).catch(function (err) {
+          st.textContent = 'カメラを開始できませんでした（' + (err && err.name ? err.name : 'エラー') +
+            '）。ブラウザのカメラ許可を確認してください。アプリ内ブラウザで許可されない場合は、Safariで開くと使えます。';
+        });
+      });
+
+      $('btnStartDemo').addEventListener('click', function () {
+        ensureAudio();
+        mode = 'demo'; running = true;
+        video.style.display = 'none'; demoCanvas.style.display = 'block';
+        frontScore = 0; footScore = 0; obstScore = 0; obstBoxN = null; level = 0;
+        resetMotion(); moverScore = 0; moverLabel = '';
+        buildScenes();
+        demoStart = performance.now();
+        showRun();
+        demoLoop();
+      });
+
+      $('btnStop').addEventListener('click', function () {
+        running = false; mode = null;
+        if (stream) { stream.getTracks().forEach(function (tr) { tr.stop(); }); stream = null; }
+        if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+        if (navigator.vibrate) { try { navigator.vibrate(0); } catch (e) {} }
+        if ('speechSynthesis' in window) speechSynthesis.cancel();
+        level = 0;
+        showStart('');
+      });
+
+      /* ================= 設定ボタン ================= */
+      function refreshBtns() {
+        $('btnSound').innerHTML = 'アラーム音：<span class="state">' + (soundOn ? 'オン' : 'オフ') + '</span>';
+        $('btnSound').className = 'ctlBtn' + (soundOn ? '' : ' off');
+        $('btnVoice').innerHTML = '音声ガイド：<span class="state">' + (voiceOn ? 'オン' : 'オフ') + '</span>';
+        $('btnVoice').className = 'ctlBtn' + (voiceOn ? '' : ' off');
+        $('btnSens').innerHTML = '感度：<span class="state">' + SENS[sensIdx].name + '</span>';
+        var hb = $('btnHaptics');
+        if (hb) {
+          hb.innerHTML = '振動：<span class="state">' + (hapticsOn ? 'オン' : 'オフ') + '</span>';
+          hb.className = 'ctlBtn' + (hapticsOn ? '' : ' off');
+        }
+      }
+      $('btnSound').addEventListener('click', function () {
+        soundOn = !soundOn; ensureAudio(); refreshBtns();
+        if (soundOn) beep(880, 0.09, 'sine');
+      });
+      $('btnVoice').addEventListener('click', function () {
+        voiceOn = !voiceOn; refreshBtns();
+        if (!voiceOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+      });
+      $('btnSens').addEventListener('click', function () {
+        sensIdx = (sensIdx + 1) % SENS.length; refreshBtns();
+      });
+      $('btnHaptics').addEventListener('click', function () {
+        hapticsOn = !hapticsOn; refreshBtns();
+        /* オンにした瞬間に1回鳴らして、効くかどうかをその場で確かめられるようにする。
+           このタップ自体が User Activation になるので、iOSハックでも鳴りやすい */
+        if (hapticsOn) fireHaptics(1, true);
+        else if (navigator.vibrate) { try { navigator.vibrate(0); } catch (e) {} }
+      });
+      /* カメラ映像（#stage）をタップで詳細パネルの表示／非表示を切り替える。
+         映像上の「詳細を隠す／表示」ボタンも同じ動作（伝播で二重に切り替わらないよう止める） */
+      $('stage').addEventListener('click', function () { togglePanels(); });
+      $('panelToggle').addEventListener('click', function (e) {
+        e.stopPropagation();
+        togglePanels();
+      });
+      $('btnHapticTest').addEventListener('click', function () {
+        /* テストは設定に関わらず危険（3回）のパターンで鳴らす。
+           タップ直後なので User Activation があり、iOSでも鳴る可能性が最も高いタイミング。
+           鳴らなければ、その端末・ブラウザでは非公式方式が効いていないと分かる */
+        fireHaptics(3, true);
+      });
+      refreshBtns();
+    </script>
+  </body>
+</html>
