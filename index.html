@@ -1767,7 +1767,23 @@
           if (Date.now() - lastFire < 600) { e.stopPropagation(); return; }
           fire(e);
         });
+        /* スクロール誤発火ガード：touchstart の位置を記録し、touchend までに
+           12px を超えて動いていたらスクロール操作とみなして発火しない
+           （その場合は preventDefault も呼ばず、ブラウザの通常処理に任せる） */
+        var startX = null, startY = null;
+        el.addEventListener('touchstart', function (e) {
+          var t = e.touches && e.touches[0];
+          if (t) { startX = t.clientX; startY = t.clientY; }
+          else { startX = startY = null; }
+        }, { passive: true });
         el.addEventListener('touchend', function (e) {
+          var t = e.changedTouches && e.changedTouches[0];
+          var sx = startX, sy = startY;
+          startX = startY = null;
+          if (t && sx !== null && sy !== null) {
+            var dx = t.clientX - sx, dy = t.clientY - sy;
+            if (Math.sqrt(dx * dx + dy * dy) > 12) return;
+          }
           if (e.cancelable) e.preventDefault();
           fire(e);
         });
