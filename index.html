@@ -310,14 +310,13 @@
       #runView.panelsHidden #readout3,
       #runView.panelsHidden #controls { display: none; }
       #stage { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-      /* 「詳細を表示／隠す」は状態バナーの右上に置く。
-         中央の #statusWord（2文字）とは幅360px程度でも重ならない大きさにしている。
-         #statusDetail はバナーの2行目なので、ボタン（1行目の高さ内）とは重ならない */
+      /* 「詳細を表示／隠す」は映像（#stage）の右下に置く（左下の「停止」と左右に分ける） */
       #panelToggle {
         position: absolute;
-        top: calc(10px + env(safe-area-inset-top, 0px));
-        right: 10px;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         z-index: 6;
+        pointer-events: auto;
         appearance: none;
         border: 1px solid rgba(255, 255, 255, .6);
         background: rgba(8, 10, 12, .72);
@@ -338,10 +337,11 @@
         border-color: var(--accent);
         color: var(--accent);
       }
+      /* 右下の「詳細を表示」ボタンの真上（ボタン高さ44px＋間隔10px）に出す */
       #stageHint {
         position: absolute;
         right: 12px;
-        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px) + 44px + 10px);
         z-index: 5;
         pointer-events: none;
         background: rgba(8, 10, 12, .55);
@@ -359,6 +359,7 @@
         top: calc(10px + env(safe-area-inset-top, 0px));
         left: 12px;
         z-index: 6;
+        pointer-events: auto;
         appearance: none;
         border: 1px solid rgba(255, 255, 255, .45);
         background: rgba(8, 10, 12, .72);
@@ -380,6 +381,7 @@
         left: 12px;
         bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         z-index: 6;
+        pointer-events: auto;
         appearance: none;
         border: 2px solid #ff8a7a;
         background: #c62d1f;
@@ -394,6 +396,8 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
       }
       #btnStop:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+      /* タップ補助：二重タップズームによる遅延・誤作動を防ぐ */
+      button, #stage { touch-action: manipulation; }
     </style>
   </head>
   <body>
@@ -490,7 +494,6 @@
       <div id="statusBanner" class="lv0">
         <div id="statusWord">安全</div>
         <div id="statusDetail">危険は検知されていません</div>
-        <button id="panelToggle" type="button" aria-pressed="true">詳細を表示</button>
       </div>
       <div id="stage" title="タップで詳細の表示／非表示を切り替え">
         <video id="cam" playsinline muted autoplay></video>
@@ -499,6 +502,7 @@
         <div id="dangerFrame"></div>
         <button id="btnBack" type="button" aria-label="開始画面へもどる">＜ もどる</button>
         <button id="btnStop" type="button">停止</button>
+        <button id="panelToggle" type="button" aria-pressed="true">詳細を表示</button>
         <span id="stageHint" aria-hidden="true">映像をタップで詳細を隠せます</span>
       </div>
       <div id="readout">
@@ -1743,7 +1747,33 @@
         }).catch(function () { modelFailed = true; modelState = 'failed'; });
       }
 
-      $('btnStartCam').addEventListener('click', function () {
+      /* ================= タップ配送の二重化 =================
+         iOS（WebKit）でボタンに click が届かない事例への対策として、
+         click と touchend の両方で handler を呼ぶ。touchend では preventDefault で
+         後続の合成 click を抑止し、さらに直近600ms以内の重複呼び出しは無視する。
+         preventDefault は対象要素（ボタンと #stage）の touchend に限るので、
+         ページ全体のスクロールは妨げない。handler は touchend の中から同期的に
+         呼ばれるので、iOS のモーションセンサー許可もタップの流れの中で求められる */
+      function bindTap(el, handler) {
+        if (!el) return;
+        var lastFire = 0;
+        function fire(e) {
+          var now = Date.now();
+          if (now - lastFire < 600) return;
+          lastFire = now;
+          handler.call(el, e);
+        }
+        el.addEventListener('click', function (e) {
+          if (Date.now() - lastFire < 600) { e.stopPropagation(); return; }
+          fire(e);
+        });
+        el.addEventListener('touchend', function (e) {
+          if (e.cancelable) e.preventDefault();
+          fire(e);
+        });
+      }
+
+      bindTap($('btnStartCam'), function () {
         ensureAudio();
         /* モーションセンサーの許可は、ユーザーのタップの流れの中で
            （getUserMedia の非同期処理より前に）求める必要がある（iOS） */
@@ -1777,7 +1807,7 @@
         });
       });
 
-      $('btnStartDemo').addEventListener('click', function () {
+      bindTap($('btnStartDemo'), function () {
         ensureAudio();
         mode = 'demo'; running = true;
         video.style.display = 'none'; demoCanvas.style.display = 'block';
@@ -1800,11 +1830,11 @@
         showStart('停止しました');
       }
       /* どちらも映像（#stage）の上にあるので、詳細の表示切替に伝播させない */
-      $('btnStop').addEventListener('click', function (e) {
+      bindTap($('btnStop'), function (e) {
         e.stopPropagation();
         stopRun();
       });
-      $('btnBack').addEventListener('click', function (e) {
+      bindTap($('btnBack'), function (e) {
         e.stopPropagation();
         stopRun();
       });
@@ -1822,18 +1852,18 @@
           hb.className = 'ctlBtn' + (hapticsOn ? '' : ' off');
         }
       }
-      $('btnSound').addEventListener('click', function () {
+      bindTap($('btnSound'), function () {
         soundOn = !soundOn; ensureAudio(); refreshBtns();
         if (soundOn) beep(880, 0.09, 'sine');
       });
-      $('btnVoice').addEventListener('click', function () {
+      bindTap($('btnVoice'), function () {
         voiceOn = !voiceOn; refreshBtns();
         if (!voiceOn && 'speechSynthesis' in window) speechSynthesis.cancel();
       });
-      $('btnSens').addEventListener('click', function () {
+      bindTap($('btnSens'), function () {
         sensIdx = (sensIdx + 1) % SENS.length; refreshBtns();
       });
-      $('btnHaptics').addEventListener('click', function () {
+      bindTap($('btnHaptics'), function () {
         hapticsOn = !hapticsOn; refreshBtns();
         /* オンにした瞬間に1回鳴らして、効くかどうかをその場で確かめられるようにする。
            このタップ自体が User Activation になるので、iOSハックでも鳴りやすい */
@@ -1841,13 +1871,13 @@
         else if (navigator.vibrate) { try { navigator.vibrate(0); } catch (e) {} }
       });
       /* カメラ映像（#stage）をタップで詳細パネルの表示／非表示を切り替える。
-         状態バナー右の「詳細を隠す／表示」ボタンも同じ動作（伝播は念のため止める） */
-      $('stage').addEventListener('click', function () { togglePanels(); });
-      $('panelToggle').addEventListener('click', function (e) {
+         映像右下の「詳細を隠す／表示」ボタンも同じ動作（伝播は止める） */
+      bindTap($('stage'), function () { togglePanels(); });
+      bindTap($('panelToggle'), function (e) {
         e.stopPropagation();
         togglePanels();
       });
-      $('btnHapticTest').addEventListener('click', function () {
+      bindTap($('btnHapticTest'), function () {
         /* テストは設定に関わらず危険（3回）のパターンで鳴らす。
            タップ直後なので User Activation があり、iOSでも鳴る可能性が最も高いタイミング。
            鳴らなければ、その端末・ブラウザでは非公式方式が効いていないと分かる */
